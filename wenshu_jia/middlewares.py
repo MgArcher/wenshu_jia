@@ -21,16 +21,21 @@ class RandomUserAgentMiddleware(object):
     '''
     变换的user-agent
     '''
+    def __init__(self):
+        self.midd_meta = None
 
     def process_request(self, request, spider):
         request.headers['User-Agent'] = ua.random_userAgent()
+        self.midd_meta = request.meta
 
     def process_response(self, request, response, spider):
         '''处理返回的response'''
-        html = response.body.decode()
-        if (response.status != 200 and response.status != 202) or 'remind key' in html or 'remind' in html or '请开启JavaScript' in html or '服务不可用' in html:
+        html = response.text
+        if response.status != 200 or 'remind key' in html or 'remind' in html or '请开启JavaScript' in html or '服务不可用' in html:
+            if 'start_requests' in self.midd_meta:
+                print('第一次请求')
+                return response
             print('正在重新请求************')
-
             new_request = request.copy()
             new_request.dont_filter = True
             return new_request

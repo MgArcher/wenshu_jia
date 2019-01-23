@@ -98,7 +98,7 @@ DEFAULT_REQUEST_HEADERS = {
 DOWNLOADER_MIDDLEWARES = {
    'wenshu_jia.middlewares.RandomUserAgentMiddleware': 543,
     # 'wenshu_jia.middlewares.ProxyMiddleware': 544,
-    'wenshu_jia.middlewares.ABYProxyMiddleware': 545,
+    # 'wenshu_jia.middlewares.ABYProxyMiddleware': 545,
 }
 
 # ITEM_PIPELINES = {
@@ -109,8 +109,8 @@ DOWNLOADER_MIDDLEWARES = {
 
 
 ######################
-CONCURRENT_REQUESTS_PER_SPIDER = 5 # 线程数(因为阿布云设置的是每秒最多5个请求,有钱可以加到100的并发)
-CONCURRENT_REQUESTS_PER_DOMAIN = 1000000 # 任何单个域执行的并发（即同时）请求的最大数量
+CONCURRENT_REQUESTS_PER_SPIDER = 16 # 线程数(因为阿布云设置的是每秒最多5个请求,有钱可以加到100的并发)
+CONCURRENT_REQUESTS_PER_DOMAIN = 100 # 任何单个域执行的并发（即同时）请求的最大数量
 # CONCURRENT_REQUESTS_PER_IP = 0 # 任何单个IP执行的并发（即同时）请求的最大数量 ; 默认值（0），这样就禁用了对每个IP的限制
 
 # 启用DNS内存缓存
@@ -138,7 +138,7 @@ MYSQL_CONFIG = {
         'host': "39.108.219.137",
         'port': 3306,
         'username': "root",
-        'password': "12345678",
+        'password': "",
         'database': "jiajia",
         'charset': "utf8"
     }
@@ -148,7 +148,7 @@ TABLE = 'zfwwd'
 
 # 获取代理
 PROXY_URL = 'http://39.108.219.137:5432/random'
-PROXY_URL_HTTP = 'http://39.108.219.137:5431/random'
+PROXY_URL_HTTP = 'http://127.0.0.1:5431/random'
 # 设置下载文件存储路径
 IMAGES_STORE = 'D:\\图片'
 MEDIA_ALLOW_REDIRECTS = True
