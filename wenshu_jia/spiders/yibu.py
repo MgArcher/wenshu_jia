@@ -8,6 +8,7 @@
 import re
 import time
 import json
+import base64
 import execjs
 import pymongo
 import asyncio
@@ -15,12 +16,10 @@ import aiohttp
 from lxml import etree
 from pyquery import PyQuery as pq
 from multiprocessing import Pool
+from redis import StrictRedis, ConnectionPool
 
 from wenshu_jia.TheUserAgent import UserAgent
-
 ua = UserAgent()
-start = time.time()
-
 
 
 class WenshuXiangqing(object):
@@ -33,7 +32,13 @@ class WenshuXiangqing(object):
             js2 = f.read()
         self.js_encrypt = execjs.compile(js1)
         self.js_ywtu = execjs.compile(js2)
+        pool = ConnectionPool(host='localhost', port=6379, db=1)
+        self.redis = StrictRedis(connection_pool=pool)
+        self.redis_name = 'docid'
+        # 设置协程并发数目
+        self.BINGFA = 2
         self.open_spider()
+        self.Proxy = Proxy()
 
     def open_spider(self):
         self.client = pymongo.MongoClient(
@@ -41,7 +46,7 @@ class WenshuXiangqing(object):
             port=27017
         )
         self.db = self.client['caipananli']
-        self.collection = self.db['minshi_anli']
+        self.collection = self.db['anli']
 
     async def get(self, url, headers=None, proxy=None):
         if not headers:
@@ -50,11 +55,10 @@ class WenshuXiangqing(object):
             }
         conn = aiohttp.TCPConnector(verify_ssl=False)
         if proxy:
-            real_proxy = 'http://' + proxy
             print(proxy)
             async with aiohttp.ClientSession(connector=conn) as session:
                 # allow_redirects 禁止重定向
-                response = await session.get(url, headers=headers, proxy=real_proxy, timeout=self.timeout, allow_redirects=False)
+                response = await session.get(url, headers=headers, proxy=proxy, timeout=self.timeout, allow_redirects=False)
                 result = await response.text()
         else:
             async with aiohttp.ClientSession(connector=conn) as session:
@@ -107,6 +111,7 @@ class WenshuXiangqing(object):
                 f80s, f80t_n),
             "Host": "wenshu.court.gov.cn",
             "Origin": "http://wenshu.court.gov.cn",
+            'User-Agent': ua.random_userAgent()
         }
         url = "http://wenshu.court.gov.cn/List/List?sorttype=1"
         response, result = await self.get(url, headers, proxy)
@@ -117,7 +122,8 @@ class WenshuXiangqing(object):
         headers = {
             "Cookie": "FSSBBIl1UgzbN7N80S={}; FSSBBIl1UgzbN7N80T={}; vjkl5={};".format(
                 f80s, f80t_n, vjkl5),
-            "Origin": "http://wenshu.court.gov.cn"
+            "Origin": "http://wenshu.court.gov.cn",
+            'User-Agent': ua.random_userAgent()
         }
         url = "http://wenshu.court.gov.cn/CreateContentJS/CreateContentJS.aspx?DocID={}".format(docid)
         response, result = await self.get(url, headers, proxy)
@@ -125,40 +131,75 @@ class WenshuXiangqing(object):
         print(item)
         self.collection.insert(item)
 
-    async def request(self, docid):
-        try:
-            proxy = '212.57.109.227:41884' # 对接获得代理程序
-            # 不使用代理
-            proxy = None
-            await self.liucheng(docid, proxy)
-        except Exception as e:
-            print(e)
-            print('报错')
-            # 网络波动，ip被封，都会报错
+    async def request(self):
+        number = self.redis.scard(self.redis_name)
+        if number != 0:
+            # 随机取出并删除docid
+            # 问题！从redis读取的是bytes格式，需要转换成字符串
+            docid = self.redis.spop(self.redis_name)
+            docid = bytes.decode(docid)
+            try:
+                # proxy为None不使用代理
+                # proxy = await self.Proxy.local_proxy()
+                proxy = self.Proxy.process_request()
+                # proxy = None
+                await self.liucheng(docid, proxy)
+            except Exception as e:
+                print(docid)
+                # 执行失败，把docid重新插入
+                self.redis.sadd(self.redis_name, docid)
+                print(e)
+                print('报错')
+                # 网络波动，ip被封，都会报错
 
     def run(self):
-        docid_list = ['539fa433-85b9-4256-b411-61e380ff9453', '952a3bdf-6afe-43fe-ab86-30b14afe492b']
-        tasks = [asyncio.ensure_future(self.request(docid)) for docid in docid_list]
+        # 设置协程并发数目
+        tasks = [asyncio.ensure_future(self.request()) for _ in range(self.BINGFA)]
         loop = asyncio.get_event_loop()
         loop.run_until_complete(asyncio.wait(tasks))
 
-        end = time.time()
-        print('Cost time:', end - start)
+
+class Proxy(object):
+    def __init__(self):
+        self.proxy_server = "http://http-dyn.abuyun.com:9020"
+        self.proxy_user = "HF58077XJO2431ZD"
+        self.proxy_pass = "B440C79F680AD3A9"
+
+    def process_request(self):
+        proxyMeta = "http://%(user)s:%(pass)s@%(host)s" % {
+            "host": self.proxy_server,
+            "user": self.proxy_user,
+            "pass": self.proxy_pass,
+        }
+        proxy = proxyMeta
+        return proxy
+
+    async def local_proxy(self):
+        # 获取本地代理
+        url = "http://localhost:5431/random"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                proxy = await resp.text()
+        proxy = 'http://' + proxy
+        return proxy
 
 
 def main():
-    # 开启异步协程
-    ws = WenshuXiangqing()
-    ws.run()
+    while True:
+        # 开启异步协程
+        ws = WenshuXiangqing()
+        ws.run()
 
 
 if __name__ == '__main__':
+    Proxy().process_request()
+    start = time.time()
     # 开启多进程
     p = Pool(2)
     for i in range(2):
         p.apply_async(main, args=())
     p.close()
     p.join()
-    # ws = WenshuXiangqing()
-    # ws.run()
+    end = time.time()
+    print('Cost time:', end - start)
 

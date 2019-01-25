@@ -10,7 +10,7 @@ import pymongo
 from pyquery import PyQuery as pq
 from wenshu_jia.items import WenshuJiaItem as ITEM
 
-
+# 废弃！！！
 class QuotesSpider(scrapy.Spider):
     name = "wenshu_x"
     # allowed_domains = ['china.findlaw.cn']
@@ -40,13 +40,28 @@ class QuotesSpider(scrapy.Spider):
         设定列表页查询条件，第一次请求首页
         :return:
         """
-        headers = {
-            "Host": "wenshu.court.gov.cn",
-            "Origin": "http://wenshu.court.gov.cn",
-        }
-        url = "http://wenshu.court.gov.cn/List/List?sorttype=1"
-        yield Request(url=url, headers=headers, callback=self.second_requests,
-                      dont_filter=True, meta={'start_requests': True})
+        i = 0
+        id = [
+            '539fa433-85b9-4256-b411-61e380ff9453',
+            '952a3bdf-6afe-43fe-ab86-30b14afe492b'
+        ]
+        while True:
+            self.wenshu_id = id[i]
+            i = i + 1
+            headers = {
+                "Host": "wenshu.court.gov.cn",
+                "Origin": "http://wenshu.court.gov.cn",
+            }
+            url = "http://wenshu.court.gov.cn/List/List?sorttype=1"
+            yield Request(
+                url=url,
+                headers=headers,
+                callback=self.second_requests,
+                dont_filter=True,
+                meta={'start_requests': True,
+                      'id': id
+                      })
+
 
     def second_requests(self, response):
         """
@@ -72,6 +87,7 @@ class QuotesSpider(scrapy.Spider):
         yield Request(url=url, headers=headers, callback=self.third_requests,
                       dont_filter=True, meta={'f80s': f80s,
                                               'f80t_n': f80t_n,
+                                              'id': response.meta['id']
                                               })
 
     def third_requests(self, response):
@@ -85,7 +101,7 @@ class QuotesSpider(scrapy.Spider):
         vjkl5 = re.findall('vjkl5=(.*?);', cookies)[0]
         f80s = response.meta['f80s']
         f80t_n = response.meta['f80t_n']
-        docid = self.wenshu_id
+        docid = response.meta['id']
 
         headers = {
             "Cookie": "FSSBBIl1UgzbN7N80S={}; FSSBBIl1UgzbN7N80T={}; vjkl5={};".format(

@@ -101,22 +101,22 @@ rsp = requests.post(url, headers=headers, data=data)
 print(data)
 print(rsp.text)
 
-# with open(r'docid.js', encoding='utf-8') as f:
-#     jsdata_2 = f.read()
-# js_2 = execjs.compile(jsdata_2)
-# runeval = json_list[0]['RunEval']
-# casewenshuid = json_list[-1].get('文书ID', '')
-# print(runeval)
-# print(casewenshuid)
-# docid = js_2.call('get_docid', runeval, casewenshuid)
-# print(docid)
-#
-# headers = {
-#     "Cookie": "FSSBBIl1UgzbN7N80S={}; FSSBBIl1UgzbN7N80T={}; vjkl5={};".format(
-#         f80s, f80t_n, vjkl5),
-#     "Origin": "http://wenshu.court.gov.cn",
-#     "User-Agent": ua.random_userAgent()
-# }
-# url = "http://wenshu.court.gov.cn/CreateContentJS/CreateContentJS.aspx?DocID={}".format(docid)
-# rsp = requests.get(url, headers=headers)
-# print(rsp.text)
+with open(r'docid.js', encoding='utf-8') as f:
+    jsdata_2 = f.read()
+js_2 = execjs.compile(jsdata_2)
+runeval = json_list[0]['RunEval']
+casewenshuid = json_list[-1].get('文书ID', '')
+print(runeval)
+print(casewenshuid)
+docid = js_2.call('get_docid', runeval, casewenshuid)
+print(docid)
+
+headers = {
+    "Cookie": "FSSBBIl1UgzbN7N80S={}; FSSBBIl1UgzbN7N80T={}; vjkl5={};".format(
+        f80s, f80t_n, vjkl5),
+    "Origin": "http://wenshu.court.gov.cn",
+    "User-Agent": ua.random_userAgent()
+}
+url = "http://wenshu.court.gov.cn/CreateContentJS/CreateContentJS.aspx?DocID={}".format(docid)
+rsp = requests.get(url, headers=headers)
+print(rsp.text)
